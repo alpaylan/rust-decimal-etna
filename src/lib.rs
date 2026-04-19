@@ -11,6 +11,10 @@ mod error;
 mod ops;
 pub mod str;
 
+// ETNA framework-neutral property functions.
+#[cfg(feature = "std")]
+pub mod etna;
+
 // We purposely place this here for documentation ordering
 mod arithmetic_impls;
 

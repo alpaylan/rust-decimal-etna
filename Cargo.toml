@@ -36,12 +36,19 @@ serde = { default-features = false, optional = true, version = "1" }
 serde_json = { default-features = false, optional = true, version = "1" }
 zmij = { default-features = false, optional = true, version = "1" }
 
+# ETNA framework dependencies. These are regular dependencies (not dev-dependencies)
+# so the `etna` binary target in src/bin/etna.rs can link against them.
+proptest-etna = { package = "proptest", default-features = false, features = ["std"], version = "1.0" }
+quickcheck = { path = "/Users/akeles/Programming/projects/PbtBenchmark/quickcheck", features = ["etna"] }
+crabcheck = { path = "/Users/akeles/Programming/projects/PbtBenchmark/crabcheck" }
+hegeltest = "0.3.7"
+
 [dev-dependencies]
 bincode = { default-features = false, version = "1" }
 bytes = { default-features = false, version = "1" }
 criterion = { default-features = false, version = "0.5" }
 csv = "1"
-diesel = { default-features = false, features = ["mysql", "postgres"], version = "2" }
+diesel = { default-features = false, features = ["postgres"], version = "2" }
 futures = { default-features = false, version = "0.3" }
 postgres = { default-features = false, version = "0.19" }
 rand-0_9 = { default-features = false, features = ["thread_rng"], package = "rand", version = "0.9" }
@@ -54,7 +61,7 @@ tokio-postgres = { default-features = false, version = "0.7" }
 version-sync = { default-features = false, features = ["html_root_url_updated", "markdown_deps_updated"], version = "0.9" }
 
 # Enable features for testing
-rust_decimal = { path = ".", features = ["rand-0_9", "macros", "rocket-0_5-traits"] }
+rust_decimal = { path = ".", features = ["rand-0_9", "macros", "rocket-0_5-traits", "maths"] }
 
 [features]
 default = ["serde", "std"]

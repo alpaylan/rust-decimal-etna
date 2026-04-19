@@ -1,0 +1,74 @@
+# ETNA workload index for rust-decimal.
+#
+# One [[variant]] per injected mutation. Source of truth for variant->property
+# mapping. Every other fact is derivable from the source tree:
+#   - marauders list --path .              (marauders variants)
+#   - ls patches/*.patch                   (patch-based variants)
+#   - grep -rn "pub fn property_" src/     (property functions)
+#   - grep -rn "fn witness_.*_case_" tests/ src/  (witness tests)
+#
+# Base commit for this workload is HEAD of the bootstrap ancestor of all
+# etna/<variant> branches. Recover with: `git merge-base --octopus etna/*`.
+
+[[variant]]
+name = "abs_sub_returns_abs_dd711db_1"
+property = "abs_sub_difference"
+injection = "patch"
+patch = "patches/abs_sub_returns_abs_dd711db_1.patch"
+source_commit = "dd711dbee5081a243e8eae5b314ecd8b0505f3ef"
+witnesses = [
+    "witness_abs_sub_difference_case_123_122",
+    "witness_abs_sub_difference_case_neg123_neg124",
+]
+frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+files = ["src/decimal.rs"]
+
+[[variant]]
+name = "is_integer_scale_decrement_951512d_1"
+property = "is_integer_matches_string"
+injection = "patch"
+patch = "patches/is_integer_scale_decrement_951512d_1.patch"
+source_commit = "951512d003a4b65724d6074a15630534994b40e6"
+witnesses = [
+    "witness_is_integer_matches_string_case_scale_10_nonzero_tail",
+    "witness_is_integer_matches_string_case_scale_19_nonzero_tail",
+]
+frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+files = ["src/decimal.rs"]
+
+[[variant]]
+name = "from_i128_negation_overflow_6f7d295_1"
+property = "from_i128_extremes"
+injection = "patch"
+patch = "patches/from_i128_negation_overflow_6f7d295_1.patch"
+source_commit = "6f7d295cd82571429064132265f907131841c60f"
+witnesses = [
+    "witness_from_i128_no_panic_case_i128_min",
+    "witness_from_i128_no_panic_case_i128_min_plus_1",
+]
+frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+files = ["src/decimal.rs"]
+
+[[variant]]
+name = "round_dp_early_return_reorder_c205456_1"
+property = "round_dp_preserves"
+injection = "patch"
+patch = "patches/round_dp_early_return_reorder_c205456_1.patch"
+source_commit = "c205456643a5f831396c2e98caa7fc91f96363bc"
+witnesses = [
+    "witness_round_dp_preserves_case_zero_scale_28_dp_32",
+]
+frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+files = ["src/decimal.rs"]
+
+[[variant]]
+name = "checked_ln_zero_panic_092fdf8_1"
+property = "checked_ln_no_panic"
+injection = "patch"
+patch = "patches/checked_ln_zero_panic_092fdf8_1.patch"
+source_commit = "092fdf8c8def5e2eb4ca5624ebfae731c3c40407"
+witnesses = [
+    "witness_checked_ln_no_panic_case_zero",
+]
+frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+files = ["src/ops/wide.rs"]

@@ -1,0 +1,13 @@
+diff --git a/src/decimal.rs b/src/decimal.rs
+index 8f9b287..ed5b064 100644
+--- a/src/decimal.rs
++++ b/src/decimal.rs
+@@ -1959,7 +1959,7 @@ impl Signed for Decimal {
+     }
+ 
+     fn abs_sub(&self, other: &Self) -> Self {
+-        if self <= other { ZERO } else { self - other }
++        if self <= other { ZERO } else { self.abs() }
+     }
+ 
+     fn signum(&self) -> Self {

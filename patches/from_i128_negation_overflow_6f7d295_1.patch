@@ -1,0 +1,13 @@
+diff --git a/src/decimal.rs b/src/decimal.rs
+index 8f9b287..24265c8 100644
+--- a/src/decimal.rs
++++ b/src/decimal.rs
+@@ -2048,7 +2048,7 @@ impl FromPrimitive for Decimal {
+             unsigned = n as u128;
+             flags = 0;
+         } else {
+-            unsigned = n.unsigned_abs();
++            unsigned = -n as u128;
+             flags = SIGN_MASK;
+         };
+         // Check if we overflow
