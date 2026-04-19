@@ -31,7 +31,7 @@ patch = "patches/is_integer_scale_decrement_951512d_1.patch"
 source_commit = "951512d003a4b65724d6074a15630534994b40e6"
 witnesses = [
     "witness_is_integer_matches_string_case_scale_10_nonzero_tail",
-    "witness_is_integer_matches_string_case_scale_19_nonzero_tail",
+    "witness_is_integer_matches_string_case_scale_19_nonzero_high",
 ]
 frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
 files = ["src/decimal.rs"]
@@ -57,6 +57,7 @@ patch = "patches/round_dp_early_return_reorder_c205456_1.patch"
 source_commit = "c205456643a5f831396c2e98caa7fc91f96363bc"
 witnesses = [
     "witness_round_dp_preserves_case_zero_scale_28_dp_32",
+    "witness_round_dp_preserves_case_zero_scale_5_dp_15",
 ]
 frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
 files = ["src/decimal.rs"]

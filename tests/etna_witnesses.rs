@@ -60,11 +60,14 @@ fn witness_is_integer_matches_string_case_scale_10_nonzero_tail() {
 }
 
 #[test]
-fn witness_is_integer_matches_string_case_scale_19_nonzero_tail() {
-    // 0.4000000000000000001, scale 19.
+fn witness_is_integer_matches_string_case_scale_19_nonzero_high() {
+    // 0.4000000000000000000 (scale 19). Mantissa is 4*10^18, which is
+    // divisible by 10^18 so the buggy `scale -= 10` loop short-circuits
+    // to "integer" after two `div_by 10^9` iterations. The correct path
+    // catches the leading `4` in the final `scale=1` step.
     expect_pass(
-        property_is_integer_matches_string(4_000_000_000_000_000_001, 19),
-        "is_integer(0.4000000000000000001) must be false",
+        property_is_integer_matches_string(4_000_000_000_000_000_000, 19),
+        "is_integer(0.4000000000000000000) must be false",
     );
 }
 
@@ -118,10 +121,13 @@ fn witness_round_dp_preserves_case_zero_scale_28_dp_32() {
 }
 
 #[test]
-fn witness_round_dp_preserves_case_small_scale_4_dp_10() {
+fn witness_round_dp_preserves_case_zero_scale_5_dp_15() {
+    // num=0, scale=5, extra_dp=10 -> dp=15. The buggy ordering short-
+    // circuits on zero first and overwrites scale to 15; the correct
+    // ordering notices old_scale<=dp and returns *self unchanged.
     expect_pass(
-        property_round_dp_preserves_when_dp_exceeds_scale(1234, 4, 6),
-        "round_dp(0.1234, 10) must return 0.1234 with scale 4",
+        property_round_dp_preserves_when_dp_exceeds_scale(0, 5, 10),
+        "round_dp(0e-5, 15) must preserve scale 5",
     );
 }
 
