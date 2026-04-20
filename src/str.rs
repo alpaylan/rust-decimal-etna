@@ -84,10 +84,6 @@ pub(crate) fn fmt_scientific_notation(
     #[cfg(not(feature = "std"))]
     use alloc::string::ToString;
 
-    if value.is_zero() {
-        return f.write_str("0e0");
-    }
-
     // Get the scale - this is the e value. With multiples of 10 this may get bigger.
     let mut exponent = -(value.scale() as isize);
 
