@@ -746,7 +746,7 @@ pub(crate) fn exp_wide(value: &Decimal) -> Option<Decimal> {
 /// ln(x) = 2 * atanh((x-1)/(x+1)) where atanh(z) = z + z³/3 + z⁵/5 + ...
 /// This converges much faster than the standard ln(1+t) series.
 pub(crate) fn ln_wide(value: &Decimal) -> Option<Decimal> {
-    if value.is_sign_negative() || value.is_zero() {
+    if value.is_sign_negative() {
         return None;
     }
     if *value == Decimal::ONE {
