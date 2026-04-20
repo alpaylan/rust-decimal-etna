@@ -197,7 +197,7 @@ impl Buf16 {
             if num < prod1 {
                 // Detected carry.
                 let tmp = remainder;
-                remainder = remainder.wrapping_add(1);
+                remainder += 1;
                 if tmp < divisor_hi {
                     break;
                 }
