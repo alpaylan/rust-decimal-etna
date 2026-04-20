@@ -1,0 +1,12 @@
+diff --git a/src/ops/div.rs b/src/ops/div.rs
+--- a/src/ops/div.rs
++++ b/src/ops/div.rs
+@@ -197,7 +197,7 @@ impl Buf16 {
+             if num < prod1 {
+                 // Detected carry.
+                 let tmp = remainder;
+-                remainder = remainder.wrapping_add(1);
++                remainder += 1;
+                 if tmp < divisor_hi {
+                     break;
+                 }

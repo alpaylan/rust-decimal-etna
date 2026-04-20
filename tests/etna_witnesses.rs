@@ -5,9 +5,10 @@
 // directly with frozen inputs; they do not touch framework machinery.
 
 use rust_decimal::etna::{
-    property_abs_sub_difference, property_checked_ln_no_panic, property_from_i128_extremes,
-    property_from_i128_no_panic, property_is_integer_matches_string,
-    property_round_dp_preserves_when_dp_exceeds_scale, PropertyResult,
+    property_abs_sub_difference, property_checked_div_no_panic, property_checked_ln_no_panic,
+    property_from_i128_extremes, property_from_i128_no_panic, property_from_scientific_no_panic,
+    property_is_integer_matches_string, property_round_dp_preserves_when_dp_exceeds_scale,
+    property_scientific_fmt_roundtrip, PropertyResult,
 };
 
 fn expect_pass(r: PropertyResult, what: &str) {
@@ -155,3 +156,75 @@ fn witness_checked_ln_no_panic_case_one() {
         "Decimal::ONE.checked_ln() must not panic",
     );
 }
+
+// ---------------------------------------------------------------------------
+// Variant: scientific_fmt_zero_d0f2a64_1
+//
+// Mutation reverts the `is_zero()` short-circuit in `fmt_scientific_notation`.
+// Without the guard, zero's mantissa digits collapse to an empty string and
+// `format!("{:e}", Decimal::ZERO)` yields `"e0"` instead of `"0e0"`, breaking
+// the roundtrip through `Decimal::from_scientific`.
+#[test]
+fn witness_scientific_fmt_roundtrip_case_zero() {
+    expect_pass(
+        property_scientific_fmt_roundtrip(0, 0),
+        "format!(\"{:e}\", Decimal::ZERO) must roundtrip",
+    );
+}
+
+#[test]
+fn witness_scientific_fmt_roundtrip_case_zero_scale_5() {
+    expect_pass(
+        property_scientific_fmt_roundtrip(0, 5),
+        "format!(\"{:e}\", Decimal::new(0, 5)) must roundtrip",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Variant: scientific_scale_overflow_722af9f_1
+//
+// Mutation reverts the `if exp > Self::MAX_SCALE` bounds check in
+// `Decimal::from_scientific`. When the user provides a gigantic negative
+// exponent (e.g. `"0e-4294967295"`), the unchecked `current_scale + exp`
+// overflows `u32` and panics under overflow-checks rather than returning
+// `Err(ScaleExceedsMaximumPrecision)`.
+#[test]
+fn witness_from_scientific_no_panic_case_neg_u32_max() {
+    // exp_bump=0 -> exp_val=u32::MAX, neg_exp=1 forces the negative branch.
+    // Base "1.1" has current_scale=1, so current_scale+exp overflows u32.
+    expect_pass(
+        property_from_scientific_no_panic(0, 1, 1),
+        "Decimal::from_scientific(\"1.1e-<u32::MAX>\") must not panic",
+    );
+}
+
+#[test]
+fn witness_from_scientific_no_panic_case_neg_u32_max_digit7() {
+    // Same boundary case with a different digit to ensure the bug is not
+    // fluking on the `1.1` literal specifically.
+    expect_pass(
+        property_from_scientific_no_panic(0, 7, 1),
+        "Decimal::from_scientific(\"7.7e-<u32::MAX>\") must not panic",
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Variant: div_remainder_overflow_a231fbf_1
+//
+// Mutation reverts `remainder.wrapping_add(1)` to plain `remainder += 1` in
+// `Buf16`'s 128/64 long-division carry path. For a dividend whose low half
+// rolls the remainder through `u64::MAX`, the unchecked add panics under
+// overflow-checks. `checked_div` must never panic regardless of inputs.
+#[test]
+fn witness_checked_div_no_panic_case_issue_392() {
+    // The exact reproducer from the a231fbf test:
+    //   -79228157791897.854723898738431 / 184512476.73336922111
+    // mix=0 forces both operands to the "issue 392" literal values; the
+    // dividend has a 29-digit mantissa that exercises the 128/64 carry
+    // branch where the non-wrapping `remainder += 1` overflows.
+    expect_pass(
+        property_checked_div_no_panic(0, 0, 0, 0, 0),
+        "checked_div(issue_392_a, issue_392_b) must not panic",
+    );
+}
+

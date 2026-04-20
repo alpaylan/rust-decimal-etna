@@ -145,3 +145,77 @@ pub fn property_checked_ln_no_panic(_num: i64, _scale: u8) -> PropertyResult {
 pub fn parse_decimal(s: &str) -> Option<Decimal> {
     Decimal::from_str(s).ok()
 }
+
+/// `format!("{:e}", d)` must round-trip through `from_scientific_exact` for
+/// every representable Decimal. Detects the d0f2a64 bug where formatting
+/// `Decimal::ZERO` as scientific notation produced `"e0"` (no mantissa)
+/// instead of `"0e0"`, causing the roundtrip to fail.
+pub fn property_scientific_fmt_roundtrip(num: i64, scale: u8) -> PropertyResult {
+    let scale = scale as u32 % 10;
+    let d = Decimal::new(num, scale);
+    let s = format!("{d:e}");
+    match Decimal::from_scientific_exact(&s) {
+        Ok(parsed) if parsed == d => PropertyResult::Pass,
+        Ok(parsed) => PropertyResult::Fail(format!(
+            "format(\"{{:e}}\", {d}) = {s:?}, re-parses to {parsed} (!= {d})"
+        )),
+        Err(e) => PropertyResult::Fail(format!(
+            "format(\"{{:e}}\", {d}) = {s:?}, fails to re-parse: {e}"
+        )),
+    }
+}
+
+/// `Decimal::from_scientific(s)` must never panic for any `s`. It either
+/// parses successfully or returns `Err`. Detects the 722af9f bug where a
+/// string like `"1e-4294967292"` caused `current_scale + exp` to overflow
+/// `u32`, panicking under overflow checks.
+pub fn property_from_scientific_no_panic(exp_bump: u8, base_digit: u8, neg_exp: u8) -> PropertyResult {
+    // Construct large negative/positive exponents near u32::MAX. The base
+    // must have a non-zero fractional part so the parsed `current_scale` is
+    // > 0; then `current_scale + exp` overflows u32 on the buggy path.
+    let exp_val = u32::MAX - (exp_bump as u32 % 32);
+    let sign = if neg_exp & 1 == 1 { "-" } else { "" };
+    let digit = (base_digit % 10) as u32;
+    let s = format!("{digit}.{digit}e{sign}{exp_val}");
+    match std::panic::catch_unwind(|| Decimal::from_scientific_exact(&s)) {
+        Ok(_) => PropertyResult::Pass,
+        Err(_) => PropertyResult::Fail(format!("from_scientific({s:?}) panicked")),
+    }
+}
+
+/// `Decimal::checked_div(a, b)` must never panic, regardless of inputs. It
+/// returns `None` when overflow would occur. Detects the a231fbf bug where
+/// the carry-handling branch in `Buf16`'s 128/64 division used unchecked
+/// `remainder += 1`, panicking in debug / with overflow-checks when the
+/// remainder saturated `u64`.
+pub fn property_checked_div_no_panic(
+    a_num: i64,
+    a_scale: u8,
+    b_num: i64,
+    b_scale: u8,
+    mix: u8,
+) -> PropertyResult {
+    // Mix biases toward wide operands so the division exercises the 128/64
+    // long-division path that hosts the reverted wrapping_add. The "issue
+    // 392" operands are the exact reproducer from rust-decimal PR #393; they
+    // have a 29-digit mantissa, which is wide enough to enter the `Buf16`
+    // path where the carry-handling branch lives.
+    let a_scale = a_scale as u32 % 15;
+    let b_scale = b_scale as u32 % 12;
+    let (a, b) = match mix % 4 {
+        0 => (
+            Decimal::from_str("-79228157791897.854723898738431").unwrap(),
+            Decimal::from_str("184512476.73336922111").unwrap(),
+        ),
+        1 => (
+            Decimal::from_str("-79228157791897.854723898738431").unwrap(),
+            Decimal::new(b_num.max(1), b_scale),
+        ),
+        2 => (Decimal::new(a_num, a_scale), Decimal::from_str("0.00000000001").unwrap()),
+        _ => (Decimal::new(a_num, a_scale), Decimal::new(b_num, b_scale)),
+    };
+    match std::panic::catch_unwind(|| a.checked_div(b)) {
+        Ok(_) => PropertyResult::Pass,
+        Err(_) => PropertyResult::Fail(format!("checked_div({a}, {b}) panicked")),
+    }
+}

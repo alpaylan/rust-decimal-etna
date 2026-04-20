@@ -10,6 +10,9 @@
 # Base commit for this workload is HEAD of the bootstrap ancestor of all
 # etna/<variant> branches. Recover with: `git merge-base --octopus etna/*`.
 
+name = "rust-decimal"
+language = "Rust"
+
 [[variant]]
 name = "abs_sub_returns_abs_dd711db_1"
 property = "abs_sub_difference"
@@ -72,3 +75,41 @@ witnesses = [
 ]
 frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
 files = ["src/ops/wide.rs"]
+
+[[variant]]
+name = "scientific_fmt_zero_d0f2a64_1"
+property = "scientific_fmt_roundtrip"
+injection = "patch"
+patch = "patches/scientific_fmt_zero_d0f2a64_1.patch"
+source_commit = "d0f2a64eb22391188b8984f973b3d4abf5720fd5"
+witnesses = [
+    "witness_scientific_fmt_roundtrip_case_zero",
+    "witness_scientific_fmt_roundtrip_case_zero_scale_5",
+]
+frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+files = ["src/str.rs"]
+
+[[variant]]
+name = "scientific_scale_overflow_722af9f_1"
+property = "from_scientific_no_panic"
+injection = "patch"
+patch = "patches/scientific_scale_overflow_722af9f_1.patch"
+source_commit = "722af9f2c2829273f9c1b09e2fd989378f795cbc"
+witnesses = [
+    "witness_from_scientific_no_panic_case_neg_u32_max",
+    "witness_from_scientific_no_panic_case_neg_u32_max_digit7",
+]
+frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+files = ["src/decimal.rs"]
+
+[[variant]]
+name = "div_remainder_overflow_a231fbf_1"
+property = "checked_div_no_panic"
+injection = "patch"
+patch = "patches/div_remainder_overflow_a231fbf_1.patch"
+source_commit = "a231fbf12c543534c6b300648e8c3a8b467968cf"
+witnesses = [
+    "witness_checked_div_no_panic_case_issue_392",
+]
+frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+files = ["src/ops/div.rs"]

@@ -1,0 +1,9 @@
+{"ts":"2026-04-20T15:33:25Z","stage":"discover","event":"start","mode":"extend"}
+{"ts":"2026-04-20T15:51:34Z","stage":"discover","event":"done","commits_scanned":1107,"fix_commits":75,"new_candidates":3}
+{"ts":"2026-04-20T15:51:34Z","stage":"atomize","event":"start","total_candidates":3}
+{"ts":"2026-04-20T15:51:34Z","stage":"atomize","event":"variant_start","name":"scientific_fmt_zero_d0f2a64_1","hash":"d0f2a64","i":1,"of":3}
+{"ts":"2026-04-20T15:51:34Z","stage":"atomize","event":"variant_start","name":"scientific_scale_overflow_722af9f_1","hash":"722af9f","i":2,"of":3}
+{"ts":"2026-04-20T15:51:34Z","stage":"atomize","event":"variant_start","name":"div_remainder_overflow_a231fbf_1","hash":"a231fbf","i":3,"of":3}
+{"ts":"2026-04-20T15:51:34Z","stage":"atomize","event":"variant_detected","name":"scientific_fmt_zero_d0f2a64_1","i":1,"of":3,"injection":"patch"}
+{"ts":"2026-04-20T15:51:34Z","stage":"atomize","event":"variant_detected","name":"scientific_scale_overflow_722af9f_1","i":2,"of":3,"injection":"patch"}
+{"ts":"2026-04-20T15:51:34Z","stage":"atomize","event":"variant_detected","name":"div_remainder_overflow_a231fbf_1","i":3,"of":3,"injection":"patch"}

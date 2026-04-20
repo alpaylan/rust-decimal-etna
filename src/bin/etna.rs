@@ -3,7 +3,9 @@
 // Usage: cargo run --release --bin etna -- <tool> <property>
 //   tool:     etna | proptest | quickcheck | crabcheck | hegel
 //   property: AbsSubDifference | IsIntegerMatchesString | FromI128NoPanic
-//             | FromI128Extremes | RoundDpPreserves | CheckedLnNoPanic | All
+//             | FromI128Extremes | RoundDpPreserves | CheckedLnNoPanic
+//             | ScientificFmtRoundtrip | FromScientificNoPanic
+//             | CheckedDivNoPanic | All
 //
 // Emits exactly one JSON line per invocation. Always exits 0.
 
@@ -14,9 +16,10 @@ use proptest_etna::prelude::*;
 use proptest_etna::test_runner::{Config as ProptestConfig, TestCaseError, TestError};
 use quickcheck::{QuickCheck, ResultStatus, TestResult};
 use rust_decimal::etna::{
-    property_abs_sub_difference, property_checked_ln_no_panic, property_from_i128_extremes,
-    property_from_i128_no_panic, property_is_integer_matches_string,
-    property_round_dp_preserves_when_dp_exceeds_scale, PropertyResult,
+    property_abs_sub_difference, property_checked_div_no_panic, property_checked_ln_no_panic,
+    property_from_i128_extremes, property_from_i128_no_panic, property_from_scientific_no_panic,
+    property_is_integer_matches_string, property_round_dp_preserves_when_dp_exceeds_scale,
+    property_scientific_fmt_roundtrip, PropertyResult,
 };
 use std::panic::AssertUnwindSafe;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -54,6 +57,9 @@ const ALL_PROPERTIES: &[&str] = &[
     "FromI128Extremes",
     "RoundDpPreserves",
     "CheckedLnNoPanic",
+    "ScientificFmtRoundtrip",
+    "FromScientificNoPanic",
+    "CheckedDivNoPanic",
 ];
 
 fn run_all<F: FnMut(&str) -> Outcome>(mut f: F) -> Outcome {
@@ -87,6 +93,9 @@ fn run_etna_property(property: &str) -> Outcome {
         "FromI128Extremes" => to_err(property_from_i128_extremes(0)),
         "RoundDpPreserves" => to_err(property_round_dp_preserves_when_dp_exceeds_scale(0, 28, 4)),
         "CheckedLnNoPanic" => to_err(property_checked_ln_no_panic(0, 0)),
+        "ScientificFmtRoundtrip" => to_err(property_scientific_fmt_roundtrip(0, 0)),
+        "FromScientificNoPanic" => to_err(property_from_scientific_no_panic(0, 1, 1)),
+        "CheckedDivNoPanic" => to_err(property_checked_div_no_panic(-79228157791897, 15, 1, 0, 0)),
         _ => return (Err(format!("Unknown property: {property}")), Metrics::default()),
     };
     let elapsed_us = t0.elapsed().as_micros();
@@ -223,6 +232,51 @@ fn run_proptest_property(property: &str) -> Outcome {
                 }
             }))
         }
+        "ScientificFmtRoundtrip" => {
+            let strat = (pt_i64(), any::<u8>());
+            map_err_testerror(runner.run(&strat, move |(n, s)| {
+                c.fetch_add(1, Ordering::Relaxed);
+                let res = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                    property_scientific_fmt_roundtrip(n, s)
+                }));
+                match res {
+                    Ok(PropertyResult::Pass) | Ok(PropertyResult::Discard) => Ok(()),
+                    Ok(PropertyResult::Fail(_)) | Err(_) => {
+                        Err(TestCaseError::fail(format!("({n} {s})")))
+                    }
+                }
+            }))
+        }
+        "FromScientificNoPanic" => {
+            let strat = (any::<u8>(), any::<u8>(), any::<u8>());
+            map_err_testerror(runner.run(&strat, move |(eb, bd, ne)| {
+                c.fetch_add(1, Ordering::Relaxed);
+                let res = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                    property_from_scientific_no_panic(eb, bd, ne)
+                }));
+                match res {
+                    Ok(PropertyResult::Pass) | Ok(PropertyResult::Discard) => Ok(()),
+                    Ok(PropertyResult::Fail(_)) | Err(_) => {
+                        Err(TestCaseError::fail(format!("({eb} {bd} {ne})")))
+                    }
+                }
+            }))
+        }
+        "CheckedDivNoPanic" => {
+            let strat = (pt_i64(), any::<u8>(), pt_i64(), any::<u8>(), any::<u8>());
+            map_err_testerror(runner.run(&strat, move |(an, asc, bn, bsc, mix)| {
+                c.fetch_add(1, Ordering::Relaxed);
+                let res = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                    property_checked_div_no_panic(an, asc, bn, bsc, mix)
+                }));
+                match res {
+                    Ok(PropertyResult::Pass) | Ok(PropertyResult::Discard) => Ok(()),
+                    Ok(PropertyResult::Fail(_)) | Err(_) => {
+                        Err(TestCaseError::fail(format!("({an} {asc} {bn} {bsc} {mix})")))
+                    }
+                }
+            }))
+        }
         _ => {
             return (
                 Err(format!("Unknown property for proptest: {property}")),
@@ -295,6 +349,33 @@ fn qc_checked_ln_no_panic(n: i64, s: u8) -> TestResult {
     }
 }
 
+fn qc_scientific_fmt_roundtrip(n: i64, s: u8) -> TestResult {
+    QC_COUNTER.fetch_add(1, Ordering::Relaxed);
+    match property_scientific_fmt_roundtrip(n, s) {
+        PropertyResult::Pass => TestResult::passed(),
+        PropertyResult::Discard => TestResult::discard(),
+        PropertyResult::Fail(_) => TestResult::failed(),
+    }
+}
+
+fn qc_from_scientific_no_panic(eb: u8, bd: u8, ne: u8) -> TestResult {
+    QC_COUNTER.fetch_add(1, Ordering::Relaxed);
+    match property_from_scientific_no_panic(eb, bd, ne) {
+        PropertyResult::Pass => TestResult::passed(),
+        PropertyResult::Discard => TestResult::discard(),
+        PropertyResult::Fail(_) => TestResult::failed(),
+    }
+}
+
+fn qc_checked_div_no_panic(an: i64, asc: u8, bn: i64, bsc: u8, mix: u8) -> TestResult {
+    QC_COUNTER.fetch_add(1, Ordering::Relaxed);
+    match property_checked_div_no_panic(an, asc, bn, bsc, mix) {
+        PropertyResult::Pass => TestResult::passed(),
+        PropertyResult::Discard => TestResult::discard(),
+        PropertyResult::Fail(_) => TestResult::failed(),
+    }
+}
+
 fn run_quickcheck_property(property: &str) -> Outcome {
     if property == "All" {
         return run_all(run_quickcheck_property);
@@ -321,6 +402,15 @@ fn run_quickcheck_property(property: &str) -> Outcome {
         }
         "CheckedLnNoPanic" => {
             qc().quicktest(qc_checked_ln_no_panic as fn(i64, u8) -> TestResult)
+        }
+        "ScientificFmtRoundtrip" => {
+            qc().quicktest(qc_scientific_fmt_roundtrip as fn(i64, u8) -> TestResult)
+        }
+        "FromScientificNoPanic" => {
+            qc().quicktest(qc_from_scientific_no_panic as fn(u8, u8, u8) -> TestResult)
+        }
+        "CheckedDivNoPanic" => {
+            qc().quicktest(qc_checked_div_no_panic as fn(i64, u8, i64, u8, u8) -> TestResult)
         }
         _ => {
             return (
@@ -405,6 +495,33 @@ fn cc_checked_ln_no_panic((n, s): (i64, u8)) -> Option<bool> {
     }
 }
 
+fn cc_scientific_fmt_roundtrip((n, s): (i64, u8)) -> Option<bool> {
+    CC_COUNTER.fetch_add(1, Ordering::Relaxed);
+    match property_scientific_fmt_roundtrip(n, s) {
+        PropertyResult::Pass => Some(true),
+        PropertyResult::Fail(_) => Some(false),
+        PropertyResult::Discard => None,
+    }
+}
+
+fn cc_from_scientific_no_panic((eb, bd, ne): (u8, u8, u8)) -> Option<bool> {
+    CC_COUNTER.fetch_add(1, Ordering::Relaxed);
+    match property_from_scientific_no_panic(eb, bd, ne) {
+        PropertyResult::Pass => Some(true),
+        PropertyResult::Fail(_) => Some(false),
+        PropertyResult::Discard => None,
+    }
+}
+
+fn cc_checked_div_no_panic((an, asc, bn, bsc, mix): (i64, u8, i64, u8, u8)) -> Option<bool> {
+    CC_COUNTER.fetch_add(1, Ordering::Relaxed);
+    match property_checked_div_no_panic(an, asc, bn, bsc, mix) {
+        PropertyResult::Pass => Some(true),
+        PropertyResult::Fail(_) => Some(false),
+        PropertyResult::Discard => None,
+    }
+}
+
 fn run_crabcheck_property(property: &str) -> Outcome {
     if property == "All" {
         return run_all(run_crabcheck_property);
@@ -421,6 +538,15 @@ fn run_crabcheck_property(property: &str) -> Outcome {
         "FromI128Extremes" => crabcheck_qc::quickcheck_with_config(cfg, cc_from_i128_extremes),
         "RoundDpPreserves" => crabcheck_qc::quickcheck_with_config(cfg, cc_round_dp_preserves),
         "CheckedLnNoPanic" => crabcheck_qc::quickcheck_with_config(cfg, cc_checked_ln_no_panic),
+        "ScientificFmtRoundtrip" => {
+            crabcheck_qc::quickcheck_with_config(cfg, cc_scientific_fmt_roundtrip)
+        }
+        "FromScientificNoPanic" => {
+            crabcheck_qc::quickcheck_with_config(cfg, cc_from_scientific_no_panic)
+        }
+        "CheckedDivNoPanic" => {
+            crabcheck_qc::quickcheck_with_config(cfg, cc_checked_div_no_panic)
+        }
         _ => {
             return (
                 Err(format!("Unknown property for crabcheck: {property}")),
@@ -566,6 +692,61 @@ fn run_hegel_property(property: &str) -> Outcome {
             .settings(settings.clone())
             .run();
         }
+        "ScientificFmtRoundtrip" => {
+            Hegel::new(|tc: hegel::TestCase| {
+                HG_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let n = tc.draw(hgen::integers::<i64>());
+                let s = tc.draw(hgen::integers::<u8>());
+                let cex = format!("({n} {s})");
+                let res = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                    property_scientific_fmt_roundtrip(n, s)
+                }));
+                match res {
+                    Ok(PropertyResult::Pass) | Ok(PropertyResult::Discard) => {}
+                    Ok(PropertyResult::Fail(_)) | Err(_) => panic!("{cex}"),
+                }
+            })
+            .settings(settings.clone())
+            .run();
+        }
+        "FromScientificNoPanic" => {
+            Hegel::new(|tc: hegel::TestCase| {
+                HG_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let eb = tc.draw(hgen::integers::<u8>());
+                let bd = tc.draw(hgen::integers::<u8>());
+                let ne = tc.draw(hgen::integers::<u8>());
+                let cex = format!("({eb} {bd} {ne})");
+                let res = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                    property_from_scientific_no_panic(eb, bd, ne)
+                }));
+                match res {
+                    Ok(PropertyResult::Pass) | Ok(PropertyResult::Discard) => {}
+                    Ok(PropertyResult::Fail(_)) | Err(_) => panic!("{cex}"),
+                }
+            })
+            .settings(settings.clone())
+            .run();
+        }
+        "CheckedDivNoPanic" => {
+            Hegel::new(|tc: hegel::TestCase| {
+                HG_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let an = tc.draw(hgen::integers::<i64>());
+                let asc = tc.draw(hgen::integers::<u8>());
+                let bn = tc.draw(hgen::integers::<i64>());
+                let bsc = tc.draw(hgen::integers::<u8>());
+                let mix = tc.draw(hgen::integers::<u8>());
+                let cex = format!("({an} {asc} {bn} {bsc} {mix})");
+                let res = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                    property_checked_div_no_panic(an, asc, bn, bsc, mix)
+                }));
+                match res {
+                    Ok(PropertyResult::Pass) | Ok(PropertyResult::Discard) => {}
+                    Ok(PropertyResult::Fail(_)) | Err(_) => panic!("{cex}"),
+                }
+            })
+            .settings(settings.clone())
+            .run();
+        }
         _ => panic!("__unknown_property:{property}"),
     }));
     let elapsed_us = t0.elapsed().as_micros();
@@ -657,7 +838,7 @@ fn main() {
         eprintln!("Usage: {} <tool> <property>", args[0]);
         eprintln!("Tools: etna | proptest | quickcheck | crabcheck | hegel");
         eprintln!(
-            "Properties: AbsSubDifference | IsIntegerMatchesString | FromI128NoPanic | FromI128Extremes | RoundDpPreserves | CheckedLnNoPanic | All"
+            "Properties: AbsSubDifference | IsIntegerMatchesString | FromI128NoPanic | FromI128Extremes | RoundDpPreserves | CheckedLnNoPanic | ScientificFmtRoundtrip | FromScientificNoPanic | CheckedDivNoPanic | All"
         );
         std::process::exit(2);
     }
