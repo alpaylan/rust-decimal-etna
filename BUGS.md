@@ -1,6 +1,6 @@
 # rust-decimal — Injected Bugs
 
-Total mutations: 5
+Total mutations: 8
 
 All variants are patch-based; apply the listed patch to a clean HEAD to reproduce the buggy build. Each `etna/<variant>` branch is a pre-applied snapshot.
 
@@ -13,6 +13,9 @@ All variants are patch-based; apply the listed patch to a clean HEAD to reproduc
 | 3 | `from_i128` negation overflow on `i128::MIN` | `from_i128_negation_overflow_6f7d295_1` | `patches/from_i128_negation_overflow_6f7d295_1.patch` | patch | `6f7d295cd82571429064132265f907131841c60f` |
 | 4 | `round_dp` early-return block ordering | `round_dp_early_return_reorder_c205456_1` | `patches/round_dp_early_return_reorder_c205456_1.patch` | patch | `c205456643a5f831396c2e98caa7fc91f96363bc` |
 | 5 | `checked_ln` panics on zero (maths feature) | `checked_ln_zero_panic_092fdf8_1` | `patches/checked_ln_zero_panic_092fdf8_1.patch` | patch | `092fdf8c8def5e2eb4ca5624ebfae731c3c40407` |
+| 6 | Scientific `{:e}` formatting loses mantissa on zero | `scientific_fmt_zero_d0f2a64_1` | `patches/scientific_fmt_zero_d0f2a64_1.patch` | patch | `d0f2a64eb22391188b8984f973b3d4abf5720fd5` |
+| 7 | `from_scientific` exponent overflow without bounds check | `scientific_scale_overflow_722af9f_1` | `patches/scientific_scale_overflow_722af9f_1.patch` | patch | `722af9f2c2829273f9c1b09e2fd989378f795cbc` |
+| 8 | `checked_div` 128/64 carry uses unchecked `remainder += 1` | `div_remainder_overflow_a231fbf_1` | `patches/div_remainder_overflow_a231fbf_1.patch` | patch | `a231fbf12c543534c6b300648e8c3a8b467968cf` |
 
 ## Property Mapping
 
@@ -23,6 +26,9 @@ All variants are patch-based; apply the listed patch to a clean HEAD to reproduc
 | `from_i128_negation_overflow_6f7d295_1` | `property_from_i128_extremes` | `witness_from_i128_no_panic_case_i128_min` |
 | `round_dp_early_return_reorder_c205456_1` | `property_round_dp_preserves_when_dp_exceeds_scale` | `witness_round_dp_preserves_case_zero_scale_28_dp_32`, `witness_round_dp_preserves_case_zero_scale_5_dp_15` |
 | `checked_ln_zero_panic_092fdf8_1` | `property_checked_ln_no_panic` | `witness_checked_ln_no_panic_case_zero` |
+| `scientific_fmt_zero_d0f2a64_1` | `property_scientific_fmt_roundtrip` | `witness_scientific_fmt_roundtrip_case_zero`, `witness_scientific_fmt_roundtrip_case_zero_scale_5` |
+| `scientific_scale_overflow_722af9f_1` | `property_from_scientific_no_panic` | `witness_from_scientific_no_panic_case_neg_u32_max`, `witness_from_scientific_no_panic_case_neg_u32_max_digit7` |
+| `div_remainder_overflow_a231fbf_1` | `property_checked_div_no_panic` | `witness_checked_div_no_panic_case_issue_392` |
 
 ## Framework Coverage
 
@@ -33,6 +39,9 @@ All variants are patch-based; apply the listed patch to a clean HEAD to reproduc
 | `property_from_i128_extremes` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `property_round_dp_preserves_when_dp_exceeds_scale` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `property_checked_ln_no_panic` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `property_scientific_fmt_roundtrip` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `property_from_scientific_no_panic` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `property_checked_div_no_panic` | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ## Bug Details
 
@@ -85,3 +94,33 @@ All variants are patch-based; apply the listed patch to a clean HEAD to reproduc
 - **Fix commit**: `092fdf8c8def5e2eb4ca5624ebfae731c3c40407` — `Avoid panic in checked_ln for zero input`
 - **Invariant violated**: `Decimal::checked_ln()` must not panic for any input — zero/negative inputs are expected to return `None`.
 - **How the mutation triggers**: `ops::wide::ln_wide` drops the `|| value.is_zero()` clause from its early-return guard. On `Decimal::ZERO` the range-reduction loop multiplies by `E_INVERSE` indefinitely, overflowing the scale and panicking.
+
+### 6. Scientific `{:e}` formatting loses mantissa on zero
+
+- **Variant**: `scientific_fmt_zero_d0f2a64_1`
+- **Location**: `patches/scientific_fmt_zero_d0f2a64_1.patch` (applies to `src/str.rs`)
+- **Property**: `property_scientific_fmt_roundtrip`
+- **Witness(es)**: `witness_scientific_fmt_roundtrip_case_zero`, `witness_scientific_fmt_roundtrip_case_zero_scale_5`
+- **Fix commit**: `d0f2a64eb22391188b8984f973b3d4abf5720fd5` — `fix: scientific formatting of 0`
+- **Invariant violated**: `format!("{:e}", d)` must roundtrip through `Decimal::from_scientific_exact` for any Decimal.
+- **How the mutation triggers**: `fmt_scientific_notation` drops the `if value.is_zero() { return f.write_str("0e0"); }` short-circuit, so zero's mantissa digits iterate zero times and the buffer is just `"e0"`, which fails to re-parse.
+
+### 7. `from_scientific` exponent overflow without bounds check
+
+- **Variant**: `scientific_scale_overflow_722af9f_1`
+- **Location**: `patches/scientific_scale_overflow_722af9f_1.patch` (applies to `src/decimal.rs`)
+- **Property**: `property_from_scientific_no_panic`
+- **Witness(es)**: `witness_from_scientific_no_panic_case_neg_u32_max`, `witness_from_scientific_no_panic_case_neg_u32_max_digit7`
+- **Fix commit**: `722af9f2c2829273f9c1b09e2fd989378f795cbc` — `fix: bounds check in Decimal::from_scientific on exponent`
+- **Invariant violated**: `Decimal::from_scientific_exact(s)` must never panic; it returns `Err(ScaleExceedsMaximumPrecision)` for out-of-range exponents.
+- **How the mutation triggers**: Both `if exp > Self::MAX_SCALE { return Err(...); }` guards are removed. For `"d.d e-<u32::MAX>"` the unchecked `current_scale + exp` overflows `u32` under overflow-checks, panicking.
+
+### 8. `checked_div` 128/64 carry uses unchecked `remainder += 1`
+
+- **Variant**: `div_remainder_overflow_a231fbf_1`
+- **Location**: `patches/div_remainder_overflow_a231fbf_1.patch` (applies to `src/ops/div.rs`)
+- **Property**: `property_checked_div_no_panic`
+- **Witness(es)**: `witness_checked_div_no_panic_case_issue_392`
+- **Fix commit**: `a231fbf12c543534c6b300648e8c3a8b467968cf` — `fix: wrap remainder increment in Buf16 long division`
+- **Invariant violated**: `Decimal::checked_div(a, b)` must never panic; it returns `None` when the division would overflow.
+- **How the mutation triggers**: `Buf16`'s 128/64 long-division carry branch reverts to plain `remainder += 1`. For the issue-392 reproducer (`-79228157791897.854723898738431 / 184512476.73336922111`), the remainder saturates `u64` and the unchecked add panics under overflow-checks.
