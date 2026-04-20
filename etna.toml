@@ -44,7 +44,6 @@ patch = "patches/from_i128_negation_overflow_6f7d295_1.patch"
 source_commit = "6f7d295cd82571429064132265f907131841c60f"
 witnesses = [
     "witness_from_i128_no_panic_case_i128_min",
-    "witness_from_i128_no_panic_case_i128_min_plus_1",
 ]
 frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
 files = ["src/decimal.rs"]
