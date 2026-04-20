@@ -7,3 +7,13 @@
 {"ts":"2026-04-20T15:51:34Z","stage":"atomize","event":"variant_detected","name":"scientific_fmt_zero_d0f2a64_1","i":1,"of":3,"injection":"patch"}
 {"ts":"2026-04-20T15:51:34Z","stage":"atomize","event":"variant_detected","name":"scientific_scale_overflow_722af9f_1","i":2,"of":3,"injection":"patch"}
 {"ts":"2026-04-20T15:51:34Z","stage":"atomize","event":"variant_detected","name":"div_remainder_overflow_a231fbf_1","i":3,"of":3,"injection":"patch"}
+{"ts":"2026-04-20T15:55:00Z","stage":"atomize","event":"variant_committed","name":"scientific_fmt_zero_d0f2a64_1","branch":"etna/scientific_fmt_zero_d0f2a64_1"}
+{"ts":"2026-04-20T15:55:00Z","stage":"atomize","event":"variant_committed","name":"scientific_scale_overflow_722af9f_1","branch":"etna/scientific_scale_overflow_722af9f_1"}
+{"ts":"2026-04-20T15:55:00Z","stage":"atomize","event":"variant_committed","name":"div_remainder_overflow_a231fbf_1","branch":"etna/div_remainder_overflow_a231fbf_1"}
+{"ts":"2026-04-20T15:55:00Z","stage":"atomize","event":"done","variants_committed":3}
+{"ts":"2026-04-20T15:58:00Z","stage":"validate","event":"start","variants":8}
+{"ts":"2026-04-20T16:20:00Z","stage":"validate","event":"base_witnesses","passed":16,"failed":0}
+{"ts":"2026-04-20T16:20:00Z","stage":"validate","event":"variant_witnesses","all_discriminating":true}
+{"ts":"2026-04-20T16:20:00Z","stage":"validate","event":"runner_smoke","variants_detected":8}
+{"ts":"2026-04-20T16:20:00Z","stage":"validate","event":"done"}
+{"ts":"2026-04-20T16:20:00Z","stage":"pipeline","event":"done","variants":8,"tasks":32}
