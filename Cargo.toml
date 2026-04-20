@@ -95,6 +95,12 @@ serde-with-str = ["serde"]
 std = ["arrayvec/std", "borsh?/std", "bytes?/std", "rand-0_9?/std", "rand-0_10?/std", "serde?/std", "serde_json?/std"]
 tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 
+# ETNA: keep overflow checks on in release so the i128::MIN negation bug
+# (from_i128_negation_overflow_6f7d295_1) panics under `cargo run --release`
+# just like it does in debug mode. Without this the bug silently wraps.
+[profile.release]
+overflow-checks = true
+
 [[bench]]
 harness = false
 name = "comparison"
