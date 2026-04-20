@@ -577,9 +577,6 @@ impl Decimal {
             let exp: u32 = stripped
                 .parse()
                 .map_err(|_err| crate::Error::FailedToParseScientificFromString)?;
-            if exp > Self::MAX_SCALE {
-                return Err(Error::ScaleExceedsMaximumPrecision(exp));
-            }
             ret.set_scale(current_scale + exp)?;
         } else {
             let exp: u32 = exp
@@ -595,9 +592,6 @@ impl Decimal {
                 // we've parsed 1.2 as the base and 10 as the exponent. To represent this within a
                 // Decimal type we effectively store the mantissa as 12,000,000,000 and scale as
                 // zero.
-                if exp > Self::MAX_SCALE {
-                    return Err(Error::ScaleExceedsMaximumPrecision(exp));
-                }
                 let mut exp = exp as usize;
                 // Max two iterations. If exp is 1 then it needs to index position 0 of the array.
                 while exp > 0 {
