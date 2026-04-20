@@ -9,10 +9,9 @@
 
 use crabcheck::quickcheck as crabcheck_qc;
 use hegel::{generators as hgen, Hegel, Settings as HegelSettings};
+use proptest_etna as proptest;
 use proptest_etna::prelude::*;
-use proptest_etna::test_runner::{
-    Config as ProptestConfig, TestCaseError, TestError, TestRunner,
-};
+use proptest_etna::test_runner::{Config as ProptestConfig, TestCaseError, TestError};
 use quickcheck::{QuickCheck, ResultStatus, TestResult};
 use rust_decimal::etna::{
     property_abs_sub_difference, property_checked_ln_no_panic, property_from_i128_extremes,
@@ -135,7 +134,7 @@ fn run_proptest_property(property: &str) -> Outcome {
     }
     let counter = Arc::new(AtomicU64::new(0));
     let t0 = Instant::now();
-    let mut runner = TestRunner::new(ProptestConfig::default());
+    let mut runner = proptest::test_runner::TestRunner::new(ProptestConfig::default());
     let c = counter.clone();
     let result: Result<(), String> = match property {
         "AbsSubDifference" => {
@@ -412,7 +411,7 @@ fn run_crabcheck_property(property: &str) -> Outcome {
     }
     CC_COUNTER.store(0, Ordering::Relaxed);
     let t0 = Instant::now();
-    let cfg = crabcheck_qc::Config { tests: 200 };
+    let cfg = crabcheck::quickcheck::Config { tests: 200 };
     let result = match property {
         "AbsSubDifference" => crabcheck_qc::quickcheck_with_config(cfg, cc_abs_sub_difference),
         "IsIntegerMatchesString" => {
