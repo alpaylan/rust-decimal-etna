@@ -1959,7 +1959,7 @@ impl Signed for Decimal {
     }
 
     fn abs_sub(&self, other: &Self) -> Self {
-        if self <= other { ZERO } else { self - other }
+        if self <= other { ZERO } else { self.abs() }
     }
 
     fn signum(&self) -> Self {
