@@ -1,115 +1,225 @@
-# ETNA workload index for rust-decimal.
-#
-# One [[variant]] per injected mutation. Source of truth for variant->property
-# mapping. Every other fact is derivable from the source tree:
-#   - marauders list --path .              (marauders variants)
-#   - ls patches/*.patch                   (patch-based variants)
-#   - grep -rn "pub fn property_" src/     (property functions)
-#   - grep -rn "fn witness_.*_case_" tests/ src/  (witness tests)
-#
-# Base commit for this workload is HEAD of the bootstrap ancestor of all
-# etna/<variant> branches. Recover with: `git merge-base --octopus etna/*`.
-
 name = "rust-decimal"
-language = "Rust"
+language = "rust"
+crate = "rust_decimal"
+base_commit = "9f54ae41fc79f6dfd5a92219f1c01390f6ce3696"
 
-[[variant]]
-name = "abs_sub_returns_abs_dd711db_1"
-property = "abs_sub_difference"
-injection = "patch"
+[[tasks]]
+mutations = ["abs_sub_returns_abs_dd711db_1"]
+
+[tasks.source]
+repo = "https://github.com/paupino/rust-decimal"
+commits = ["dd711dbee5081a243e8eae5b314ecd8b0505f3ef"]
+commit_subjects = ["Re-implement abs_sub function to match num-trait 0.1 behavior"]
+summary = "`<Decimal as num_traits::Signed>::abs_sub` returned `self.abs()` on the `self > other` branch instead of the arithmetic difference `self - other`, so `abs_sub(123, 122)` came out as `123` rather than `1`. The fix rewrites the impl to `max(a - b, 0)`, matching `num-traits 0.1` semantics."
+
+[tasks.injection]
+kind = "patch"
+files = ["src/decimal.rs"]
+locations = [{ file = "src/decimal.rs" }]
 patch = "patches/abs_sub_returns_abs_dd711db_1.patch"
-source_commit = "dd711dbee5081a243e8eae5b314ecd8b0505f3ef"
-witnesses = [
-    "witness_abs_sub_difference_case_123_122",
-    "witness_abs_sub_difference_case_neg123_neg124",
-]
-frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
-files = ["src/decimal.rs"]
 
-[[variant]]
-name = "is_integer_scale_decrement_951512d_1"
-property = "is_integer_matches_string"
-injection = "patch"
+[tasks.bug]
+short_name = "abs_sub_returns_abs"
+invariant = "`num_traits::Signed::abs_sub(a, b) == max(a - b, 0)`. When `a > b` the result is the arithmetic difference, not `|a|`."
+how_triggered = "`<Decimal as Signed>::abs_sub` returns `self.abs()` on the `self > other` branch. For `abs_sub(123, 122)` the correct answer is `1`, but the mutation returns `123`."
+
+[[tasks.tasks]]
+property = "AbsSubDifference"
+witnesses = [
+  { test_fn = "witness_abs_sub_difference_case_123_122" },
+  { test_fn = "witness_abs_sub_difference_case_neg123_neg124" },
+]
+
+[[tasks]]
+mutations = ["is_integer_scale_decrement_951512d_1"]
+
+[tasks.source]
+repo = "https://github.com/paupino/rust-decimal"
+commits = ["951512d003a4b65724d6074a15630534994b40e6"]
+commit_subjects = ["Fix scale decrement in Decimal::is_integer"]
+summary = "`Decimal::is_integer` decremented `scale -= 10` per `div_by_u32(bits, 10^9)` iteration even though each iteration consumed only 9 digits of scale. For values whose low 9 digits were zero (e.g. `0.4000000000`) the loop exited early and reported \"integer\" when it wasn't. The fix uses `scale -= 9` so the accounting matches."
+
+[tasks.injection]
+kind = "patch"
+files = ["src/decimal.rs"]
+locations = [{ file = "src/decimal.rs" }]
 patch = "patches/is_integer_scale_decrement_951512d_1.patch"
-source_commit = "951512d003a4b65724d6074a15630534994b40e6"
-witnesses = [
-    "witness_is_integer_matches_string_case_scale_10_nonzero_tail",
-    "witness_is_integer_matches_string_case_scale_19_nonzero_high",
-]
-frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
-files = ["src/decimal.rs"]
 
-[[variant]]
-name = "from_i128_negation_overflow_6f7d295_1"
-property = "from_i128_extremes"
-injection = "patch"
+[tasks.bug]
+short_name = "is_integer_scale_decrement"
+invariant = "`Decimal::is_integer()` agrees with the string form: true iff there are no non-zero digits after the decimal point."
+how_triggered = """
+`Decimal::is_integer` decrements `scale -= 10` per `div_by_u32(bits, 10^9)` iteration even though only 9 digits of scale were actually consumed. For values whose low 9 digits are zero (e.g. `0.4000000000` with scale 10, or `0.4000000000000000000` with scale 19), the loop exits early reporting "integer".
+"""
+
+[[tasks.tasks]]
+property = "IsIntegerMatchesString"
+witnesses = [
+  { test_fn = "witness_is_integer_matches_string_case_scale_10_nonzero_tail" },
+  { test_fn = "witness_is_integer_matches_string_case_scale_19_nonzero_high" },
+]
+
+[[tasks]]
+mutations = ["from_i128_negation_overflow_6f7d295_1"]
+
+[tasks.source]
+repo = "https://github.com/paupino/rust-decimal"
+commits = ["6f7d295cd82571429064132265f907131841c60f"]
+commit_subjects = ["Fix overflow negating i128::MIN in FromPrimitive"]
+summary = "`<Decimal as FromPrimitive>::from_i128` negated the input via `-n as u128`, which panics on `i128::MIN` under overflow-checks (no non-negative representation exists for the minimum). The fix uses `n.unsigned_abs()`, which returns `2^127` for `i128::MIN` without going through a signed negation."
+
+[tasks.injection]
+kind = "patch"
+files = ["src/decimal.rs"]
+locations = [{ file = "src/decimal.rs" }]
 patch = "patches/from_i128_negation_overflow_6f7d295_1.patch"
-source_commit = "6f7d295cd82571429064132265f907131841c60f"
-witnesses = [
-    "witness_from_i128_no_panic_case_i128_min",
-]
-frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
-files = ["src/decimal.rs"]
 
-[[variant]]
-name = "round_dp_early_return_reorder_c205456_1"
-property = "round_dp_preserves"
-injection = "patch"
+[tasks.bug]
+short_name = "from_i128_negation_overflow"
+invariant = "`<Decimal as FromPrimitive>::from_i128(n)` never panics; it returns `None` when `n` is too large to represent."
+how_triggered = "The negative branch uses `-n as u128` instead of `n.unsigned_abs()`. For `n == i128::MIN` the literal negation overflows, panicking in debug builds."
+
+[[tasks.tasks]]
+property = "FromI128Extremes"
+witnesses = [
+  { test_fn = "witness_from_i128_no_panic_case_i128_min" },
+]
+
+[[tasks]]
+mutations = ["round_dp_early_return_reorder_c205456_1"]
+
+[tasks.source]
+repo = "https://github.com/paupino/rust-decimal"
+commits = ["c205456643a5f831396c2e98caa7fc91f96363bc"]
+commit_subjects = ["Reorder round_dp early returns to preserve scale when dp is larger"]
+summary = "`round_dp_with_strategy` checked the `value.is_zero()` short-circuit before the `old_scale <= dp` guard, so rounding zero to a larger scale replaced the original scale with `dp` (e.g. `Decimal::new(0, 5).round_dp(15)` became scale 15). The fix reorders the early-return blocks so the scale-preserving branch runs first."
+
+[tasks.injection]
+kind = "patch"
+files = ["src/decimal.rs"]
+locations = [{ file = "src/decimal.rs" }]
 patch = "patches/round_dp_early_return_reorder_c205456_1.patch"
-source_commit = "c205456643a5f831396c2e98caa7fc91f96363bc"
-witnesses = [
-    "witness_round_dp_preserves_case_zero_scale_28_dp_32",
-    "witness_round_dp_preserves_case_zero_scale_5_dp_15",
-]
-frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
-files = ["src/decimal.rs"]
 
-[[variant]]
-name = "checked_ln_zero_panic_092fdf8_1"
-property = "checked_ln_no_panic"
-injection = "patch"
-patch = "patches/checked_ln_zero_panic_092fdf8_1.patch"
-source_commit = "092fdf8c8def5e2eb4ca5624ebfae731c3c40407"
+[tasks.bug]
+short_name = "round_dp_early_return_reorder"
+invariant = "When `dp >= old_scale`, `round_dp_with_strategy` must return `*self` unchanged (preserving the original scale)."
+how_triggered = "The zero short-circuit runs before the `old_scale <= dp` check, so zero values are rebuilt with `scale = dp` instead of retaining the original scale. E.g. `Decimal::new(0, 5).round_dp(15)` ends up with scale 15 instead of 5."
+
+[[tasks.tasks]]
+property = "RoundDpPreservesWhenDpExceedsScale"
 witnesses = [
-    "witness_checked_ln_no_panic_case_zero",
+  { test_fn = "witness_round_dp_preserves_case_zero_scale_28_dp_32" },
+  { test_fn = "witness_round_dp_preserves_case_zero_scale_5_dp_15" },
 ]
-frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+
+[[tasks]]
+mutations = ["checked_ln_zero_panic_092fdf8_1"]
+
+[tasks.source]
+repo = "https://github.com/paupino/rust-decimal"
+commits = ["092fdf8c8def5e2eb4ca5624ebfae731c3c40407"]
+commit_subjects = ["Avoid panic in checked_ln for zero input"]
+summary = "`ops::wide::ln_wide` guarded against negatives but not against `Decimal::ZERO`; on zero, the range-reduction loop multiplied by `E_INVERSE` without bound, overflowing the scale and panicking. The fix extends the guard to `|| value.is_zero()` so `checked_ln(0)` returns `None` instead."
+
+[tasks.injection]
+kind = "patch"
 files = ["src/ops/wide.rs"]
+locations = [{ file = "src/ops/wide.rs" }]
+patch = "patches/checked_ln_zero_panic_092fdf8_1.patch"
 
-[[variant]]
-name = "scientific_fmt_zero_d0f2a64_1"
-property = "scientific_fmt_roundtrip"
-injection = "patch"
-patch = "patches/scientific_fmt_zero_d0f2a64_1.patch"
-source_commit = "d0f2a64eb22391188b8984f973b3d4abf5720fd5"
+[tasks.bug]
+short_name = "checked_ln_zero_panic"
+invariant = "`Decimal::checked_ln()` must not panic for any input — zero/negative inputs are expected to return `None`."
+how_triggered = "`ops::wide::ln_wide` drops the `|| value.is_zero()` clause from its early-return guard. On `Decimal::ZERO` the range-reduction loop multiplies by `E_INVERSE` indefinitely, overflowing the scale and panicking."
+
+[[tasks.tasks]]
+property = "CheckedLnNoPanic"
 witnesses = [
-    "witness_scientific_fmt_roundtrip_case_zero",
-    "witness_scientific_fmt_roundtrip_case_zero_scale_5",
+  { test_fn = "witness_checked_ln_no_panic_case_zero" },
 ]
-frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+
+[[tasks]]
+mutations = ["scientific_fmt_zero_d0f2a64_1"]
+
+[tasks.source]
+repo = "https://github.com/paupino/rust-decimal"
+commits = ["d0f2a64eb22391188b8984f973b3d4abf5720fd5"]
+commit_subjects = ["fix: scientific formatting of 0"]
+summary = "`fmt_scientific_notation` iterated over the mantissa digits, which is empty when the value is zero, so `format!(\"{:e}\", Decimal::ZERO)` produced `\"e0\"` — rejected when re-parsed through `from_scientific`. The fix adds an `if value.is_zero() { return f.write_str(\"0e0\"); }` short-circuit."
+
+[tasks.injection]
+kind = "patch"
 files = ["src/str.rs"]
+locations = [{ file = "src/str.rs" }]
+patch = "patches/scientific_fmt_zero_d0f2a64_1.patch"
 
-[[variant]]
-name = "scientific_scale_overflow_722af9f_1"
-property = "from_scientific_no_panic"
-injection = "patch"
-patch = "patches/scientific_scale_overflow_722af9f_1.patch"
-source_commit = "722af9f2c2829273f9c1b09e2fd989378f795cbc"
+[tasks.bug]
+short_name = "scientific_fmt_zero"
+invariant = """
+`format!("{:e}", d)` must roundtrip through `Decimal::from_scientific_exact` for any Decimal.
+"""
+how_triggered = """
+`fmt_scientific_notation` drops the `if value.is_zero() { return f.write_str("0e0"); }` short-circuit, so zero's mantissa digits iterate zero times and the buffer is just `"e0"`, which fails to re-parse.
+"""
+
+[[tasks.tasks]]
+property = "ScientificFmtRoundtrip"
 witnesses = [
-    "witness_from_scientific_no_panic_case_neg_u32_max",
-    "witness_from_scientific_no_panic_case_neg_u32_max_digit7",
+  { test_fn = "witness_scientific_fmt_roundtrip_case_zero" },
+  { test_fn = "witness_scientific_fmt_roundtrip_case_zero_scale_5" },
 ]
-frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+
+[[tasks]]
+mutations = ["scientific_scale_overflow_722af9f_1"]
+
+[tasks.source]
+repo = "https://github.com/paupino/rust-decimal"
+commits = ["722af9f2c2829273f9c1b09e2fd989378f795cbc"]
+commit_subjects = ["fix: bounds check in Decimal::from_scientific on exponent"]
+summary = "`Decimal::from_scientific_exact` added the parsed exponent onto the current scale without bounds-checking, so inputs like `\"1e-4294967295\"` overflowed `u32` and panicked under overflow-checks. The fix adds `if exp > Self::MAX_SCALE { return Err(...) }` guards on both sign branches before the add."
+
+[tasks.injection]
+kind = "patch"
 files = ["src/decimal.rs"]
+locations = [{ file = "src/decimal.rs" }]
+patch = "patches/scientific_scale_overflow_722af9f_1.patch"
 
-[[variant]]
-name = "div_remainder_overflow_a231fbf_1"
-property = "checked_div_no_panic"
-injection = "patch"
-patch = "patches/div_remainder_overflow_a231fbf_1.patch"
-source_commit = "a231fbf12c543534c6b300648e8c3a8b467968cf"
+[tasks.bug]
+short_name = "scientific_scale_overflow"
+invariant = "`Decimal::from_scientific_exact(s)` must never panic; it returns `Err(ScaleExceedsMaximumPrecision)` for out-of-range exponents."
+how_triggered = """
+Both `if exp > Self::MAX_SCALE { return Err(...); }` guards are removed. For `"d.d e-<u32::MAX>"` the unchecked `current_scale + exp` overflows `u32` under overflow-checks, panicking.
+"""
+
+[[tasks.tasks]]
+property = "FromScientificNoPanic"
 witnesses = [
-    "witness_checked_div_no_panic_case_issue_392",
+  { test_fn = "witness_from_scientific_no_panic_case_neg_u32_max" },
+  { test_fn = "witness_from_scientific_no_panic_case_neg_u32_max_digit7" },
 ]
-frameworks = ["proptest", "quickcheck", "crabcheck", "hegel"]
+
+[[tasks]]
+mutations = ["div_remainder_overflow_a231fbf_1"]
+
+[tasks.source]
+repo = "https://github.com/paupino/rust-decimal"
+commits = ["a231fbf12c543534c6b300648e8c3a8b467968cf"]
+commit_subjects = ["fix: wrap remainder increment in Buf16 long division"]
+summary = "`Buf16`'s 128/64 long-division carry branch used `remainder += 1`, which could overflow `u64` for adversarial dividend/divisor pairs (issue #392) and panicked under overflow-checks. The fix swaps to `remainder = remainder.wrapping_add(1)` — the wrap is provably safe for the division algorithm but the compiler can't see it."
+
+[tasks.injection]
+kind = "patch"
 files = ["src/ops/div.rs"]
+locations = [{ file = "src/ops/div.rs" }]
+patch = "patches/div_remainder_overflow_a231fbf_1.patch"
+
+[tasks.bug]
+short_name = "div_remainder_overflow"
+invariant = "`Decimal::checked_div(a, b)` must never panic; it returns `None` when the division would overflow."
+how_triggered = "`Buf16`'s 128/64 long-division carry branch reverts to plain `remainder += 1`. For the issue-392 reproducer (`-79228157791897.854723898738431 / 184512476.73336922111`), the remainder saturates `u64` and the unchecked add panics under overflow-checks."
+
+[[tasks.tasks]]
+property = "CheckedDivNoPanic"
+witnesses = [
+  { test_fn = "witness_checked_div_no_panic_case_issue_392" },
+]
