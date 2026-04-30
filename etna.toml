@@ -1,5 +1,6 @@
 name = "rust-decimal"
 language = "rust"
+strategies = ["proptest", "quickcheck", "crabcheck", "hegel"]
 crate = "rust_decimal"
 base_commit = "9f54ae41fc79f6dfd5a92219f1c01390f6ce3696"
 
