@@ -39,8 +39,8 @@ zmij = { default-features = false, optional = true, version = "1" }
 # ETNA framework dependencies. These are regular dependencies (not dev-dependencies)
 # so the `etna` binary target in src/bin/etna.rs can link against them.
 proptest-etna = { package = "proptest", default-features = false, features = ["std"], version = "1.0" }
-quickcheck = { path = "/Users/akeles/Programming/projects/PbtBenchmark/quickcheck", features = ["etna"] }
-crabcheck = { path = "/Users/akeles/Programming/projects/PbtBenchmark/crabcheck" }
+quickcheck = { git = "https://github.com/alpaylan/quickcheck.git", branch = "master", features = ["etna"] }
+crabcheck = { git = "https://github.com/alpaylan/crabcheck.git", branch = "main" }
 hegeltest = "0.3.7"
 
 [dev-dependencies]
