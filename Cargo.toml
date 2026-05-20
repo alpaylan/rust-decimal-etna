@@ -101,6 +101,10 @@ tokio-pg = ["db-tokio-postgres"] # Backwards compatability
 [profile.release]
 overflow-checks = true
 
+[[bin]]
+name = "etna-faultloc"
+path = "src/bin/etna-faultloc.rs"
+
 [[bench]]
 harness = false
 name = "comparison"
